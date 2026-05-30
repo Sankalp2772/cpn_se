@@ -189,6 +189,7 @@ async function renderMindmap() {
   }
 
   state.expandedNodes = state.expandedNodes || {};
+  state.expandedNodes["root"] = true; // ALWAYS expand the root node
   for (let id of state.path) state.expandedNodes[id] = true;
 
   async function buildTree(nodeId, depth = 0) {
