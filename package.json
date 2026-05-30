@@ -6,6 +6,7 @@
     "install-backend": "cd backend && npm install",
     "setup-db": "cd backend && npm run setup-db",
     "start": "cd backend && npm start",
+    "build": "cd backend && npm install",
     "postinstall": "cd backend && npm install"
   }
 }

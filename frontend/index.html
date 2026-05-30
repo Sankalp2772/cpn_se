@@ -1,180 +1,339 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Career Path Navigator</title>
+  <title>Career Path Navigator — AI-Powered Career Guidance</title>
+  <meta name="description" content="Explore career opportunities with AI-powered roadmaps. Register, choose your academic status, and build your personalized career path.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-logo">CPN</div>
-      <div>
-        <h1>Career Path Navigator</h1>
-        <p>Full stack career exploration system</p>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- AUTH PAGES (shown when not logged in)       -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="authPages" class="auth-pages hidden">
+
+    <!-- NAV BAR -->
+    <nav class="auth-nav">
+      <div class="auth-nav-brand">
+        <div class="brand-logo-sm">CPN</div>
+        <span>Career Path Navigator</span>
       </div>
-    </div>
-
-    <div class="user-box">
-      <strong id="userName">Guest</strong>
-      <span id="userMeta">Register or login to save roadmaps</span>
-    </div>
-
-    <nav class="nav">
-      <button class="nav-btn active" data-screen="home">Home</button>
-      <button class="nav-btn" data-screen="explore">Explore</button>
-      <button class="nav-btn" data-screen="mindmap">Mindmap</button>
-      <button class="nav-btn" data-screen="roadmap">Roadmap PDF</button>
-      <button class="nav-btn" data-screen="compare">Compare</button>
+      <div class="auth-nav-links">
+        <button class="btn ghost" id="navLoginBtn">Login</button>
+        <button class="btn primary" id="navRegisterBtn">Get Started Free</button>
+        <button class="theme-toggle" id="themeToggle" title="Toggle Theme">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
     </nav>
 
-    <button class="logout-btn" id="logoutBtn">Logout</button>
-  </aside>
-
-  <main class="main">
-    <header class="topbar">
-      <div>
-        <h2 id="screenTitle">Home</h2>
-        <p id="screenSubtitle">Login and choose your current academic status to begin.</p>
-      </div>
-      <div class="top-actions">
-        <button class="btn light" id="resetPathBtn">Reset path</button>
-        <button class="btn primary" id="saveRoadmapBtn">Save roadmap</button>
-      </div>
-    </header>
-
-    <section class="screen active" id="home">
-      <div class="hero">
-        <div class="hero-copy">
-          <span class="tag">Software Engineering + Web Technology Project</span>
-          <h2>Explore career opportunities through a tree-based roadmap.</h2>
-          <p>
-            A full-stack website where students register, select academic status, explore career paths,
-            generate roadmaps, compare options, and ask doubts through a chatbot.
-          </p>
-        </div>
-
-        <div class="auth-card">
-          <div class="auth-tabs">
-            <button class="auth-tab active" data-auth="register">Register</button>
-            <button class="auth-tab" data-auth="login">Login</button>
+    <!-- LANDING PAGE -->
+    <div id="landingPage" class="auth-page">
+      <section class="landing-hero">
+        <div class="landing-hero-left">
+          <span class="tag">AI-Powered Career Guidance</span>
+          <h1>Build your <span class="highlight">perfect career</span> roadmap today.</h1>
+          <p>Navigate your future with data-driven insights. Explore hundreds of career paths, generate personalized roadmaps, and get AI guidance — all in one platform.</p>
+          <div class="hero-actions">
+            <button class="btn primary x-large" id="heroGetStarted">Get Started Free</button>
+            <button class="btn light x-large" id="heroLearnMore">See How It Works →</button>
           </div>
+          <div class="hero-stats">
+            <div class="stat-item"><strong>500+</strong><span>Career Paths</span></div>
+            <div class="stat-item"><strong>10K+</strong><span>Students Guided</span></div>
+            <div class="stat-item"><strong>AI</strong><span>Powered Advisor</span></div>
+          </div>
+        </div>
+        <div class="landing-hero-right">
+          <div class="abstract-bg"></div>
+          <div class="hero-visual-card hero-main-card">
+            <div class="card-label">SUGGESTED ROADMAP</div>
+            <div class="path-preview">
+              <div class="path-step"><div class="path-dot done">✓</div><span>After 10th Grade</span></div>
+              <div class="path-line"></div>
+              <div class="path-step"><div class="path-dot done">✓</div><span>Science (PCM)</span></div>
+              <div class="path-line"></div>
+              <div class="path-step"><div class="path-dot active">3</div><span><b>B.Tech CSE</b></span></div>
+              <div class="path-line"></div>
+              <div class="path-step"><div class="path-dot pending">4</div><span class="text-muted">Data Scientist</span></div>
+            </div>
+          </div>
+          <div class="hero-visual-card hero-badge-card">
+            <div class="card-icon green">🤖</div>
+            <div class="card-text"><strong>AI Chatbot</strong><span>Always available</span></div>
+          </div>
+          <div class="hero-visual-card hero-badge-card-top">
+            <div class="card-icon gold">VS</div>
+            <div class="card-text"><strong>Smart Compare</strong><span>Side-by-side</span></div>
+          </div>
+        </div>
+      </section>
 
-          <form id="registerForm" class="auth-form active">
-            <label>Full name<input id="registerName" required placeholder="Your name"></label>
-            <label>Email<input id="registerEmail" type="email" required placeholder="student@example.com"></label>
-            <label>Password<input id="registerPassword" type="password" required placeholder="Minimum 4 characters"></label>
-            <label>City<input id="registerCity" placeholder="Hubballi"></label>
-            <label>Goal
-              <select id="registerGoal">
-                <option>Confused and exploring</option>
-                <option>Need high-income career</option>
-                <option>Need early earning option</option>
-                <option>Interested in technology</option>
-                <option>Interested in government jobs</option>
-              </select>
-            </label>
-            <label>Academic status
-              <select id="registerStatus"></select>
-            </label>
-            <button class="btn primary full" type="submit">Create account and start</button>
-          </form>
+      <!-- FEATURES SECTION -->
+      <section class="features-section">
+        <div class="section-header">
+          <h2>Everything you need to plan your career</h2>
+          <p>A complete platform designed for students at every academic stage.</p>
+        </div>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">M</div>
+            <h3>Interactive Mindmap</h3>
+            <p>Visualize your full career path as a tree from any academic starting point.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🤖</div>
+            <h3>AI Career Advisor</h3>
+            <p>Ask questions and get personalized, database-backed career advice instantly.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">P</div>
+            <h3>PDF Roadmap Export</h3>
+            <p>Generate and download a beautiful personalized roadmap PDF in one click.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">C</div>
+            <h3>Career Comparison</h3>
+            <p>Compare two saved roadmaps side-by-side on skills, scope, cost and more.</p>
+          </div>
+        </div>
+      </section>
+    </div>
 
-          <form id="loginForm" class="auth-form">
-            <label>Email<input id="loginEmail" type="email" required placeholder="student@example.com"></label>
-            <label>Password<input id="loginPassword" type="password" required placeholder="Your password"></label>
-            <button class="btn primary full" type="submit">Login</button>
+    <!-- LOGIN PAGE -->
+    <div id="loginPage" class="auth-page auth-form-page hidden">
+      <div class="auth-form-container">
+        <div class="auth-form-card">
+          <div class="auth-form-header">
+            <div class="brand-logo-sm">CPN</div>
+            <h2>Welcome back</h2>
+            <p>Login to continue your career journey.</p>
+          </div>
+          <form id="loginForm">
+            <div class="form-group">
+              <label>Email Address</label>
+              <input id="loginEmail" type="email" required placeholder="john@example.com">
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input id="loginPassword" type="password" required placeholder="••••••••">
+            </div>
+            <button class="btn primary full large" type="submit" id="loginSubmitBtn">Login to Dashboard</button>
           </form>
+          <p class="auth-switch">Don't have an account? <button class="link-btn" id="switchToRegister">Create one free →</button></p>
+        </div>
+        <div class="auth-form-visual">
+          <blockquote>"Career Path Navigator helped me decide between MBA and data science. The AI roadmap was incredibly specific!"</blockquote>
+          <cite>— Priya S., B.Tech Student, Pune</cite>
         </div>
       </div>
-    </section>
+    </div>
 
-    <section class="screen" id="explore">
-      <div class="layout-grid">
+    <!-- REGISTER PAGE -->
+    <div id="registerPage" class="auth-page auth-form-page hidden">
+      <div class="auth-form-container">
+        <div class="auth-form-card">
+          <div class="auth-form-header">
+            <div class="brand-logo-sm">CPN</div>
+            <h2>Create your account</h2>
+            <p>Join 10,000+ students planning their future.</p>
+          </div>
+          <form id="registerForm">
+            <div class="form-grid">
+              <div class="form-group full">
+                <label>Full Name</label>
+                <input id="registerName" required placeholder="John Doe">
+              </div>
+              <div class="form-group">
+                <label>Email Address</label>
+                <input id="registerEmail" type="email" required placeholder="john@example.com">
+              </div>
+              <div class="form-group">
+                <label>Password</label>
+                <input id="registerPassword" type="password" required placeholder="••••••••">
+              </div>
+              <div class="form-group">
+                <label>City</label>
+                <input id="registerCity" placeholder="e.g. Bangalore">
+              </div>
+              <div class="form-group">
+                <label>Your Goal</label>
+                <select id="registerGoal">
+                  <option>Confused and exploring</option>
+                  <option>Need high-income career</option>
+                  <option>Need early earning option</option>
+                  <option>Interested in technology</option>
+                  <option>Interested in government jobs</option>
+                </select>
+              </div>
+              <div class="form-group full">
+                <label>Current Academic Status</label>
+                <select id="registerStatus"></select>
+              </div>
+            </div>
+            <button class="btn primary full large" type="submit" id="registerSubmitBtn">Create Account →</button>
+          </form>
+          <p class="auth-switch">Already have an account? <button class="link-btn" id="switchToLogin">Login →</button></p>
+        </div>
+        <div class="auth-form-visual">
+          <blockquote>"I was confused after 12th. This platform showed me exactly what B.Tech CSE leads to — step by step!"</blockquote>
+          <cite>— Rahul M., 12th Grade Student, Hubballi</cite>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /authPages -->
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- DASHBOARD (shown when logged in)            -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="dashboardPages" class="hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">CPN</div>
+        <div>
+          <h1>Career Path Navigator</h1>
+          <p>AI-powered career exploration</p>
+        </div>
+      </div>
+
+      <div class="user-box" id="sidebarUserBox">
+        <strong id="userName">Guest</strong>
+        <span id="userMeta">Loading...</span>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-btn active" data-screen="explore">Explore Paths</button>
+        <button class="nav-btn" data-screen="mindmap">Mindmap</button>
+        <button class="nav-btn" data-screen="roadmap">Roadmap PDF</button>
+        <button class="nav-btn" data-screen="compare">Compare</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="theme-toggle-sidebar btn light full" id="themeToggleSidebar" title="Toggle Theme" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          Theme Settings
+        </button>
+        <button class="logout-btn" id="logoutBtn" style="margin-top:12px">Logout</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2 id="screenTitle">Explore Paths</h2>
+          <p id="screenSubtitle">Move step by step through career options from the database.</p>
+        </div>
+        <div class="top-actions">
+          <button class="btn light" id="resetPathBtn">Reset Path</button>
+          <button class="btn primary" id="saveRoadmapBtn">Save Roadmap</button>
+        </div>
+      </header>
+
+      <!-- EXPLORE -->
+      <section class="screen active" id="explore">
+        <div class="layout-grid">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>Current Path</h3>
+              <p>Click a career option to go deeper.</p>
+            </div>
+            <div class="panel-body">
+              <div class="crumbs" id="crumbs"></div>
+              <div class="option-list" id="optionList"></div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>Career Details</h3>
+              <p>Eligibility, skills, scope and opportunities loaded from database.</p>
+            </div>
+            <div class="panel-body" id="detailPanel">
+              <p class="muted">Select a career option on the left to see details.</p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- MINDMAP -->
+      <section class="screen" id="mindmap">
         <section class="panel">
           <div class="panel-head">
-            <h3>Current path</h3>
-            <p>Click a career option to go deeper.</p>
+            <h3>Mindmap View</h3>
+            <p>Tree route from selected academic stage to future opportunities.</p>
           </div>
           <div class="panel-body">
-            <div class="crumbs" id="crumbs"></div>
-            <div class="option-list" id="optionList"></div>
+            <div class="mindmap" id="mindmapEl"></div>
           </div>
         </section>
+      </section>
 
+      <!-- ROADMAP -->
+      <section class="screen" id="roadmap">
+        <section class="panel">
+          <div class="panel-head split">
+            <div>
+              <h3>Personalized Roadmap</h3>
+              <p>Generate a printable PDF roadmap for your selected path.</p>
+            </div>
+            <button class="btn orange" id="downloadPdfBtn">Download PDF</button>
+          </div>
+          <div class="panel-body">
+            <div class="roadmap" id="roadmapSteps"></div>
+          </div>
+        </section>
+      </section>
+
+      <!-- COMPARE -->
+      <section class="screen" id="compare">
         <section class="panel">
           <div class="panel-head">
-            <h3>Career details</h3>
-            <p>Eligibility, skills, scope and opportunities are loaded from MySQL.</p>
+            <h3>Compare Saved Roadmaps</h3>
+            <p>Save two explored roadmaps, then compare them side by side.</p>
           </div>
-          <div class="panel-body" id="detailPanel"></div>
+          <div class="panel-body">
+            <div class="compare-controls">
+              <label>Roadmap A<select id="compareA"></select></label>
+              <label>Roadmap B<select id="compareB"></select></label>
+              <button class="btn primary" id="compareBtn">Compare</button>
+            </div>
+            <div id="savedRoadmaps" class="saved-list" style="margin-top:16px"></div>
+            <div id="compareResult"></div>
+          </div>
         </section>
-      </div>
-    </section>
-
-    <section class="screen" id="mindmap">
-      <section class="panel">
-        <div class="panel-head">
-          <h3>Mindmap view</h3>
-          <p>Tree route from selected academic stage to future opportunities.</p>
-        </div>
-        <div class="panel-body">
-          <div class="mindmap" id="mindmap"></div>
-        </div>
       </section>
+    </main>
+
+    <!-- AI Chatbot -->
+    <button class="chat-open" id="chatOpen">🤖</button>
+    <section class="chat" id="chat">
+      <header>
+        <div>
+          <strong>Career AI Assistant</strong>
+          <span>Powered by Gemini AI</span>
+        </div>
+        <button id="chatClose">✕</button>
+      </header>
+      <div class="chat-messages" id="chatMessages"></div>
+      <form class="chat-form" id="chatForm">
+        <input id="chatInput" placeholder="Ask a career question...">
+        <button class="btn primary" type="submit">Send</button>
+      </form>
     </section>
+  </div><!-- /dashboardPages -->
 
-    <section class="screen" id="roadmap">
-      <section class="panel">
-        <div class="panel-head split">
-          <div>
-            <h3>Personalized roadmap</h3>
-            <p>Generate a printable PDF roadmap for your selected path.</p>
-          </div>
-          <button class="btn orange" id="downloadPdfBtn">Download as PDF</button>
-        </div>
-        <div class="panel-body">
-          <div class="roadmap" id="roadmapSteps"></div>
-        </div>
-      </section>
-    </section>
-
-    <section class="screen" id="compare">
-      <section class="panel">
-        <div class="panel-head">
-          <h3>Compare saved roadmaps</h3>
-          <p>Save two explored roadmaps, then compare them side by side.</p>
-        </div>
-        <div class="panel-body">
-          <div class="compare-controls">
-            <label>Roadmap A<select id="compareA"></select></label>
-            <label>Roadmap B<select id="compareB"></select></label>
-            <button class="btn primary" id="compareBtn">Compare</button>
-          </div>
-          <div id="savedRoadmaps" class="saved-list"></div>
-          <div id="compareResult"></div>
-        </div>
-      </section>
-    </section>
-  </main>
-
-  <button class="chat-open" id="chatOpen">AI</button>
-  <section class="chat" id="chat">
-    <header>
-      <div>
-        <strong>Career AI Assistant</strong>
-        <span>Ask doubts about paths, roadmap or comparison</span>
-      </div>
-      <button id="chatClose">x</button>
-    </header>
-    <div class="chat-messages" id="chatMessages"></div>
-    <form class="chat-form" id="chatForm">
-      <input id="chatInput" placeholder="Ask a career question...">
-      <button class="btn primary">Send</button>
-    </form>
-  </section>
-
+  <!-- Print sheet & toast -->
   <section id="printSheet" class="print-sheet"></section>
   <div id="toast" class="toast"></div>
 

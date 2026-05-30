@@ -6,6 +6,9 @@ require("dotenv").config();
 
 const pool = require("./src/db");
 const { createToken, authRequired } = require("./src/auth");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -69,6 +72,143 @@ async function getChildren(parentId) {
     [parentId || null]
   );
   return rows.map(optionRow);
+}
+
+async function getAllOptions() {
+  const [rows] = await pool.query("SELECT * FROM career_options ORDER BY display_order, title");
+  return rows.map(optionRow);
+}
+
+const recommendationAliases = [
+  {
+    id: "data-science",
+    aliases: ["data science", "datascience", "data scientist", "data analyst", "analytics", "machine learning", "ml"]
+  },
+  {
+    id: "cybersecurity",
+    aliases: ["cybersecurity", "cyber security", "ethical hacking", "hacking", "security analyst", "network security"]
+  },
+  {
+    id: "full-stack",
+    aliases: ["full stack", "fullstack", "web development", "web developer", "mern", "frontend", "backend"]
+  },
+  {
+    id: "cloud-devops",
+    aliases: ["cloud", "devops", "aws", "azure", "deployment", "sre", "site reliability"]
+  },
+  {
+    id: "mobile-development",
+    aliases: ["mobile app", "app development", "android", "ios", "flutter", "react native"]
+  },
+  {
+    id: "ai-ml-engineering",
+    aliases: ["artificial intelligence", "ai ml", "ai engineer", "ai/ml", "deep learning", "nlp", "computer vision"]
+  },
+  {
+    id: "cse",
+    aliases: ["computer science", "cse", "software engineering", "software developer", "coding", "programming"]
+  }
+];
+
+function normalizedText(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9+#. ]/g, " ");
+}
+
+function findAliasMatch(question) {
+  const lower = normalizedText(question);
+  return recommendationAliases
+    .flatMap((item) => item.aliases.map((alias) => ({ id: item.id, alias })))
+    .filter((item) => lower.includes(item.alias))
+    .sort((a, b) => b.alias.length - a.alias.length)[0];
+}
+
+function optionSearchText(option) {
+  return normalizedText([
+    option.id,
+    option.title,
+    option.short,
+    option.summary,
+    option.scope,
+    option.duration,
+    option.cost,
+    option.difficulty,
+    ...option.eligibility,
+    ...option.skills,
+    ...option.opportunities
+  ].join(" "));
+}
+
+function scoreOption(option, question) {
+  const terms = normalizedText(question).split(/\s+/).filter((term) => term.length > 2);
+  if (!terms.length) return 0;
+  const text = optionSearchText(option);
+  const title = normalizedText(option.title);
+  return terms.reduce((score, term) => {
+    if (title.includes(term)) return score + 5;
+    if (text.includes(term)) return score + 2;
+    return score;
+  }, 0);
+}
+
+function buildPath(option, byId) {
+  const pathItems = [];
+  let current = option;
+  while (current) {
+    pathItems.unshift(current);
+    current = current.parentId ? byId.get(current.parentId) : null;
+  }
+  return pathItems;
+}
+
+function formatPath(pathItems) {
+  return pathItems.map((item) => item.title).join(" -> ");
+}
+
+function formatRecommendation(target, pathItems) {
+  const root = pathItems[0]?.title || "After 10th";
+  const final = pathItems[pathItems.length - 1];
+  return [
+    `Recommended path for ${target.title}:`,
+    formatPath(pathItems),
+    "",
+    `Start: ${root}`,
+    `Final target: ${final.title}`,
+    `Duration: ${target.duration}`,
+    `Cost level: ${target.cost}`,
+    `Difficulty: ${target.difficulty}`,
+    "",
+    "Why this path fits:",
+    target.summary,
+    "",
+    "Step-by-step roadmap:",
+    ...pathItems.map((item, index) => `${index + 1}. ${item.title}: ${item.short || item.summary}`),
+    "",
+    "Core skills to build:",
+    target.skills.map((skill) => `- ${skill}`).join("\n"),
+    "",
+    "Eligibility checklist:",
+    target.eligibility.map((item) => `- ${item}`).join("\n"),
+    "",
+    "Career opportunities:",
+    target.opportunities.map((item) => `- ${item}`).join("\n"),
+    "",
+    "Practical project plan:",
+    `- Month 1-2: Learn the basics for ${target.skills.slice(0, 2).join(" and ")}.`,
+    `- Month 3-4: Build 2 small projects related to ${target.title}.`,
+    "- Month 5-6: Add database/API or real-world data, publish on GitHub, and prepare a resume portfolio.",
+    "- During college: Do internships, certifications, hackathons and final-year projects in this area."
+  ].join("\n");
+}
+
+function formatGeneralAnswer(question, matches) {
+  const top = matches.slice(0, 3);
+  return [
+    "I searched the career database and these options match your query:",
+    "",
+    ...top.map((option, index) => `${index + 1}. ${option.title}: ${option.short}\n   Scope: ${option.scope}`),
+    "",
+    "Ask like: 'build path for data science', 'cybersecurity roadmap', or 'full stack development path' and I will generate the full route from starting stage to final career."
+  ].join("\n");
 }
 
 app.get("/api/health", async (_req, res) => {
@@ -227,45 +367,93 @@ app.post("/api/compare", async (req, res) => {
 });
 
 app.post("/api/chatbot", async (req, res) => {
-  console.debug('Chatbot payload:', req.body);
-  const questionRaw = req.body && (req.body.question || req.body.q || req.body.message || req.body.prompt || "");
-  const question = String(questionRaw || "").trim();
-  const lower = question.toLowerCase();
-  console.debug('Normalized question:', lower);
+  try {
+    const { question: questionRaw, currentOptionId } = req.body;
+    const question = String(questionRaw || "").trim();
+    
+    // Try to get user from token if available
+    let user = null;
+    const header = req.headers.authorization || "";
+    const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (token) {
+      try {
+        user = require("jsonwebtoken").verify(token, process.env.JWT_SECRET || "career_path_navigator_secret_key");
+        // Get full user profile from DB to get goal and status
+        const [rows] = await pool.query("SELECT * FROM users WHERE id = ?", [user.id]);
+        if (rows[0]) user = { ...user, goal: rows[0].goal, academicStatus: rows[0].academic_status };
+      } catch (e) { /* ignore invalid token */ }
+    }
 
-  if (!lower) {
-    return res.json({ answer: "Please type your question and ask about career paths, roadmap PDF, saving roadmaps or comparing options." });
+    if (!question) {
+      return res.json({
+        answer: "Hi! I'm your Career AI Assistant. How can I help you today? You can ask about roadmaps, specific careers, or comparison between paths."
+      });
+    }
+
+    // 1. Get database context
+    const options = await getAllOptions();
+    const byId = new Map(options.map((option) => [option.id, option]));
+    
+    const scored = options
+      .map((option) => ({ option, score: scoreOption(option, question) }))
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((item) => item.option);
+
+    const topMatches = scored.slice(0, 3);
+    const match = scored[0];
+    let dbContext = "";
+    if (topMatches.length > 0) {
+      dbContext = "DATABASE MATCHES FOUND (Use this data to answer):\n\n" + topMatches.map(m => {
+        const pathItems = buildPath(m, byId);
+        return `Career: ${m.title}
+Summary: ${m.summary}
+Path: ${formatPath(pathItems)}
+Skills: ${m.skills.join(", ")}
+Opportunities: ${m.opportunities.join(", ")}
+Scope: ${m.scope}`;
+      }).join("\n\n---\n\n");
+    } else {
+      dbContext = "AVAILABLE CAREER OPTIONS IN DATABASE:\n" + options.map(o => o.title).join(", ");
+    }
+
+    // 2. Call Gemini for a personalized response
+    const systemPrompt = `You are the "Career Path Navigator AI", a helpful and professional career counselor.
+Your goal is to guide students based on their goals and academic status.
+
+${user ? `USER PROFILE:
+- Name: ${user.name}
+- Goal: ${user.goal}
+- Academic Status: ${user.academicStatus}` : "USER PROFILE: Guest (Unknown status)"}
+
+CONTEXT FROM OUR DATABASE:
+${dbContext || "No direct database match found for this specific query."}
+
+INSTRUCTIONS:
+1. Be encouraging and specific. Address the user by name if known.
+2. If a DATABASE MATCH is provided, use those details (skills, path, scope) in your answer.
+3. If no match is found, use your general knowledge to provide a high-quality career roadmap.
+4. Keep the response concise but informative (max 300 words).
+5. Use **bold** for important terms and structure with bullet points.
+
+User Question: ${question}`;
+
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(systemPrompt);
+    const aiAnswer = result.response.text();
+
+    res.json({
+      answer: aiAnswer,
+      recommendation: match ? {
+        finalOptionId: match.id,
+        pathIds: buildPath(match, byId).map(i => i.id)
+      } : null
+    });
+
+  } catch (error) {
+    console.error("Chatbot Error:", error);
+    res.status(500).json({ answer: `Sorry, I'm having trouble right now. Please try again in a moment. (${error.message})` });
   }
-
-  let answer = "I can help with career paths, roadmap saving, PDF download, and comparisons. Ask about after 10th, after 12th, engineering, medical, commerce, or roadmap options.";
-
-  if (lower.includes("after 10") || lower.includes("10th")) {
-    answer = "After 10th, the main options are Science, Commerce, Arts, Diploma/Polytechnic, ITI, vocational courses, defence, government jobs, agriculture, business, digital careers, open schooling and apprenticeships.";
-  } else if (lower.includes("after 12") || lower.includes("12th")) {
-    answer = "After 12th, students can pursue degree programs, professional courses, entrance exams, government job preparation, skill-training, or entrepreneurship.";
-  } else if (lower.includes("diploma") || lower.includes("polytechnic") || lower.includes("iti")) {
-    answer = "Diploma and ITI paths are good for technical skills, practical jobs, apprenticeships, and later entry into engineering or industry roles.";
-  } else if (lower.includes("science") && lower.includes("commerce")) {
-    answer = "Science leads to engineering, medical, research, and technology. Commerce leads to CA, CS, finance, banking, business, management and analytics.";
-  } else if (lower.includes("science")) {
-    answer = "Science is ideal for engineering, medical, research, IT and technical careers. It requires strong maths, physics, and in many cases biology.";
-  } else if (lower.includes("commerce")) {
-    answer = "Commerce is ideal for accounting, finance, business, management, CA, CS, and analytics. It suits students interested in business and economics.";
-  } else if (lower.includes("engineering") || lower.includes("coding") || lower.includes("programming")) {
-    answer = "Engineering and coding require maths, logical thinking, problem solving and projects. Popular options include CSE, IT, ECE, AI/Data Science and software development.";
-  } else if (lower.includes("medical") || lower.includes("doctor") || lower.includes("neet")) {
-    answer = "Medical requires 12th Science with Biology and usually NEET for MBBS. It is competitive, but leads to strong healthcare and research careers.";
-  } else if (lower.includes("earn") || lower.includes("job") || lower.includes("income")) {
-    answer = "For early earning, consider vocational training, ITI, diploma, apprenticeships, freelancing, retail/repair services, or government 10th-pass exams.";
-  } else if (lower.includes("pdf") || lower.includes("roadmap")) {
-    answer = "Open the Roadmap PDF screen after choosing a path, then click Download as PDF. In the print dialog, choose Save as PDF.";
-  } else if (lower.includes("save") || lower.includes("roadmaps") || lower.includes("save roadmap")) {
-    answer = "You can save your selected career path as a roadmap once a final option is selected. Saved roadmaps can be compared later in the Compare screen.";
-  } else if (lower.includes("compare")) {
-    answer = "Use the Compare screen to select two saved roadmaps and compare duration, cost, difficulty, scope, skills and opportunities side by side.";
-  }
-
-  res.json({ answer });
 });
 
 app.get("*", (_req, res) => {

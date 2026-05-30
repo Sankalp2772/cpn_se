@@ -1,5 +1,11 @@
+/* ═══════════════════════════════════════════
+   Career Path Navigator — app.js
+   Dynamic SPA with auth gating + dark mode
+   ═══════════════════════════════════════════ */
+
 const API = "";
 
+// ─── State ──────────────────────────────────
 const state = {
   token: localStorage.getItem("cpn_token"),
   user: JSON.parse(localStorage.getItem("cpn_user") || "null"),
@@ -7,11 +13,16 @@ const state = {
   current: null,
   currentDetail: null,
   path: [],
-  savedRoadmaps: []
+  savedRoadmaps: [],
+  expandedNodes: {}
 };
 
+// ─── Helpers ─────────────────────────────────
 const $ = (id) => document.getElementById(id);
+const hide = (el) => el?.classList.add("hidden");
+const show = (el) => el?.classList.remove("hidden");
 
+// ─── API Wrapper ─────────────────────────────
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
@@ -21,46 +32,89 @@ async function api(path, options = {}) {
   return data;
 }
 
-function toast(message) {
-  $("toast").textContent = message;
-  $("toast").classList.add("show");
-  setTimeout(() => $("toast").classList.remove("show"), 1800);
+// ─── Toast ────────────────────────────────────
+function toast(message, type = "default") {
+  const el = $("toast");
+  el.textContent = message;
+  el.className = `toast show ${type}`;
+  setTimeout(() => el.classList.remove("show"), 2800);
 }
 
+// ─── Theme ────────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("cpn_theme", theme);
+  const isDark = theme === "dark";
+  const icon = isDark ? "Light" : "Theme";
+  const label = isDark ? "Light Mode" : "Dark Mode";
+  if ($("themeToggle")) $("themeToggle").textContent = icon;
+  if ($("themeToggleSidebar")) $("themeToggleSidebar").textContent = label;
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme");
+  applyTheme(current === "dark" ? "light" : "dark");
+}
+
+// ─── Page Router ─────────────────────────────
+function showAuthPage(pageId) {
+  // Hide all auth sub-pages
+  ["landingPage", "loginPage", "registerPage"].forEach(id => hide($(id)));
+  show($(pageId));
+  show($("authPages"));
+  hide($("dashboardPages"));
+}
+
+function showDashboard(screen = "explore") {
+  hide($("authPages"));
+  show($("dashboardPages"));
+  showScreen(screen);
+}
+
+// ─── Dashboard Screen Routing ─────────────────
 function showScreen(id) {
-  document.querySelectorAll(".screen").forEach((screen) => screen.classList.toggle("active", screen.id === id));
-  document.querySelectorAll(".nav-btn").forEach((btn) => btn.classList.toggle("active", btn.dataset.screen === id));
+  document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === id));
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.screen === id));
+
   const copy = {
-    home: ["Home", "Login and choose your current academic status to begin."],
-    explore: ["Explore", "Move step by step through career options from the database."],
-    mindmap: ["Mindmap", "See the selected route in a tree-based visual structure."],
+    explore: ["Explore Paths", "Move step by step through career options from the database."],
+    mindmap: ["Mindmap", "See your selected route as a tree-based visual structure."],
     roadmap: ["Roadmap PDF", "Generate and download your selected path as PDF."],
     compare: ["Compare", "Compare two saved roadmaps using database-backed data."]
   };
-  $("screenTitle").textContent = copy[id][0];
-  $("screenSubtitle").textContent = copy[id][1];
+
+  if (copy[id]) {
+    $("screenTitle").textContent = copy[id][0];
+    $("screenSubtitle").textContent = copy[id][1];
+  }
+
   if (id === "compare") loadRoadmaps();
+  if (id === "mindmap") renderMindmap();
 }
 
+// ─── User State ───────────────────────────────
 function setUser(user, token) {
   state.user = user;
   state.token = token;
   localStorage.setItem("cpn_user", JSON.stringify(user));
   localStorage.setItem("cpn_token", token);
-  renderUser();
+  renderUserInfo();
 }
 
-function renderUser() {
-  $("userName").textContent = state.user?.name || "Guest";
-  $("userMeta").textContent = state.user
-    ? `${state.user.academicStatus || "Student"} | ${state.user.goal || "Exploring"}`
-    : "Register or login to save roadmaps";
+function renderUserInfo() {
+  if (!state.user) return;
+  $("userName").textContent = state.user.name || "User";
+  $("userMeta").textContent = `${state.user.academicStatus || "Student"} · ${state.user.goal || "Exploring"}`;
 }
 
+// ─── Career Data Loading ──────────────────────
 async function loadStages() {
   state.stages = await api("/api/career/stages");
-  $("registerStatus").innerHTML = state.stages.map((stage) => `<option value="${stage.id}">${stage.title}</option>`).join("");
-  if (!state.current) {
+  const statusEl = $("registerStatus");
+  if (statusEl) {
+    statusEl.innerHTML = state.stages.map(s => `<option value="${s.id}">${s.title}</option>`).join("");
+  }
+  if (!state.current && state.stages.length) {
     state.current = state.user?.academicStatus || state.stages[0]?.id;
     state.path = [state.current];
   }
@@ -71,35 +125,34 @@ async function loadCurrent() {
   const detail = await api(`/api/career/options/${state.current}`);
   state.currentDetail = detail;
   renderExplore(detail);
-  renderMindmap();
   renderRoadmap();
 }
 
+// ─── Explore ──────────────────────────────────
 function renderExplore(detail) {
-  $("crumbs").innerHTML = state.path.map((id, index) => {
+  $("crumbs").innerHTML = state.path.map((id, i) => {
     const label = id === detail.id ? detail.title : id.replaceAll("-", " ");
-    return `<button class="crumb" data-crumb="${index}">${label}</button>`;
+    return `<button class="crumb" data-crumb="${i}">${label}</button>`;
   }).join("");
 
-  document.querySelectorAll("[data-crumb]").forEach((btn) => {
+  document.querySelectorAll("[data-crumb]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const index = Number(btn.dataset.crumb);
-      state.path = state.path.slice(0, index + 1);
+      const i = Number(btn.dataset.crumb);
+      state.path = state.path.slice(0, i + 1);
       state.current = state.path[state.path.length - 1];
       await loadCurrent();
     });
   });
 
-  $("optionList").innerHTML = detail.children.length
-    ? detail.children.map((item) => `
-      <button class="option-btn" data-option="${item.id}">
-        <strong>${item.title}</strong>
-        <span>${item.short}</span>
-      </button>
-    `).join("")
-    : `<p class="muted">This is a final route. Save it, generate a roadmap, compare it, or ask the chatbot.</p>`;
+  $("optionList").innerHTML = detail.children?.length
+    ? detail.children.map(item => `
+        <button class="option-btn" data-option="${item.id}">
+          <strong>${item.title}</strong>
+          <span>${item.short || ""}</span>
+        </button>`).join("")
+    : `<p class="muted" style="padding:12px 0">This is a final route. Save it as a roadmap or ask the chatbot about next steps.</p>`;
 
-  document.querySelectorAll("[data-option]").forEach((btn) => {
+  document.querySelectorAll("[data-option]").forEach(btn => {
     btn.addEventListener("click", async () => {
       state.current = btn.dataset.option;
       state.path.push(state.current);
@@ -109,178 +162,133 @@ function renderExplore(detail) {
 
   $("detailPanel").innerHTML = `
     <h2 class="detail-title">${detail.title}</h2>
-    <p class="muted">${detail.summary}</p>
+    <p class="muted">${detail.summary || ""}</p>
     <div class="chips">
-      <span class="chip teal">Duration: ${detail.duration}</span>
-      <span class="chip orange">Cost: ${detail.cost}</span>
-      <span class="chip">Difficulty: ${detail.difficulty}</span>
-    </div>
-    <div class="mini-card">
-      <h4>Scope</h4>
-      <p class="muted">${detail.scope}</p>
+      <span class="chip teal">${detail.duration || "N/A"}</span>
+      <span class="chip orange">${detail.cost || "N/A"}</span>
+      <span class="chip blue">${detail.difficulty || "N/A"}</span>
+      <span class="chip">${detail.scope || "N/A"}</span>
     </div>
     <div class="detail-columns">
-      ${listCard("Eligibility", detail.eligibility)}
-      ${listCard("Skills", detail.skills)}
-      ${listCard("Opportunities", detail.opportunities)}
-    </div>
-  `;
+      ${listCard("Eligibility", detail.eligibility || [])}
+      ${listCard("Skills to Build", detail.skills || [])}
+      ${listCard("Opportunities", detail.opportunities || [])}
+    </div>`;
 }
 
 function listCard(title, items) {
-  return `
-    <div class="mini-card">
-      <h4>${title}</h4>
-      <ul>${items.map((item) => `<li>${item}</li>`).join("")}</ul>
-    </div>
-  `;
+  return `<div class="mini-card"><h4>${title}</h4><ul>${items.map(i => `<li>${i}</li>`).join("")}</ul></div>`;
 }
 
+// ─── Mindmap ──────────────────────────────────
 async function renderMindmap() {
+  const container = $("mindmapEl");
   if (!state.stages.length) {
-    $("mindmap").innerHTML = `<p class="muted">No career stages found. Load data first.</p>`;
+    container.innerHTML = `<p class="muted">No career stages found.</p>`;
     return;
   }
 
-  // Recursively build a tree structure
-  async function buildTree(nodeId, depth = 0) {
-    if (depth > 10) return ""; // Prevent infinite loops
-    
-    const node = nodeId ? await api(`/api/career/options/${nodeId}`) : { id: "root", title: "Career Stages", children: state.stages };
-    if (!node) return "";
+  state.expandedNodes = state.expandedNodes || {};
+  for (let id of state.path) state.expandedNodes[id] = true;
 
+  async function buildTree(nodeId, depth = 0) {
+    if (depth > 10) return "";
+    const node = nodeId
+      ? await api(`/api/career/options/${nodeId}`)
+      : { id: "root", title: "Career Stages", children: state.stages };
+    if (!node) return "";
     const isActive = state.path.includes(node.id) || node.id === "root";
     const children = node.children || [];
-    
     let html = `<div class="tree-node ${isActive ? "active" : ""}">
       <div class="tree-node-title ${node.id === "root" ? "root" : ""}" data-id="${node.id}">
         <span class="tree-toggle">${children.length ? (state.expandedNodes?.[node.id] ? "▼" : "▶") : "○"}</span>
         <strong>${node.title}</strong>
         ${node.short ? `<span class="tree-short">${node.short}</span>` : ""}
       </div>`;
-
     if (children.length && state.expandedNodes?.[node.id]) {
       html += `<div class="tree-children">`;
-      for (let child of children) {
-        html += await buildTree(child.id, depth + 1);
-      }
+      for (let child of children) html += await buildTree(child.id, depth + 1);
       html += `</div>`;
     }
-
     html += `</div>`;
     return html;
   }
 
-  state.expandedNodes = state.expandedNodes || {};
-  
-  // Always expand the current path
-  for (let id of state.path) {
-    state.expandedNodes[id] = true;
-  }
+  container.innerHTML = `<div class="tree-container">${await buildTree(null)}</div>`;
 
-  const treeHtml = await buildTree(null);
-  $("mindmap").innerHTML = `<div class="tree-container">${treeHtml}</div>`;
-
-  // Add event listeners for tree navigation
-  document.querySelectorAll(".tree-node-title").forEach((titleEl) => {
-    titleEl.addEventListener("click", async (e) => {
+  document.querySelectorAll(".tree-node-title").forEach(el => {
+    el.addEventListener("click", async (e) => {
       e.stopPropagation();
-      const id = titleEl.dataset.id;
-      
+      const id = el.dataset.id;
       if (id === "root") return;
-      
-      // Toggle expand/collapse
-      if (state.expandedNodes[id]) {
-        delete state.expandedNodes[id];
-      } else {
-        state.expandedNodes[id] = true;
-      }
-      
-      // Navigate to this node if it's in the tree
-      const nodeData = await api(`/api/career/options/${id}`);
+      if (state.expandedNodes[id]) delete state.expandedNodes[id];
+      else state.expandedNodes[id] = true;
+      const nodeData = await api(`/api/career/options/${id}`).catch(() => null);
       if (nodeData) {
-        // Find the root of this node and rebuild the path
         state.current = id;
-        // Update path to include this node
-        if (!state.path.includes(id)) {
-          state.path.push(id);
-        }
+        if (!state.path.includes(id)) state.path.push(id);
         await loadCurrent();
       }
-      
       await renderMindmap();
     });
-
-    const toggleEl = titleEl.querySelector(".tree-toggle");
-    if (toggleEl) {
-      toggleEl.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const id = titleEl.dataset.id;
-        if (state.expandedNodes[id]) {
-          delete state.expandedNodes[id];
-        } else {
-          state.expandedNodes[id] = true;
-        }
-        await renderMindmap();
-      });
-    }
   });
 }
 
+// ─── Roadmap ──────────────────────────────────
 function roadmapSteps() {
+  if (!state.currentDetail) return [];
   const final = state.currentDetail;
-  const pathText = state.path.join(" -> ");
   return [
-    ["Understand current stage", `Start from ${state.path[0]} and identify interests, budget, time and family expectations.`],
-    ["Explore selected route", `Selected route: ${pathText}. Check eligibility and future outcomes before final decision.`],
-    ["Build skills", `Focus on: ${final.skills.join(", ")}.`],
-    ["Prepare for entry", "Track entrance exams, admission forms, portfolios, certificates or interviews depending on the route."],
-    ["Move toward opportunities", `Target opportunities: ${final.opportunities.join(", ")}.`]
+    ["Understand Current Stage", `Start from ${state.path[0] || "your current level"} and identify interests, budget, time and expectations.`],
+    ["Explore Selected Route", `Selected route: ${state.path.join(" → ")}. Verify eligibility and outcomes.`],
+    ["Build Core Skills", `Focus on: ${(final.skills || []).join(", ") || "domain-specific skills"}.`],
+    ["Prepare for Entry", "Track entrance exams, admission forms, portfolios, certificates or interviews for your chosen route."],
+    ["Target Opportunities", `Aim for: ${(final.opportunities || []).join(", ") || "industry opportunities"}.`]
   ];
 }
 
 function renderRoadmap() {
-  if (!state.currentDetail) return;
-  $("roadmapSteps").innerHTML = roadmapSteps().map((step, index) => `
+  if (!state.currentDetail) {
+    $("roadmapSteps").innerHTML = `<p class="muted">Explore a career path first to generate your roadmap.</p>`;
+    return;
+  }
+  $("roadmapSteps").innerHTML = roadmapSteps().map((step, i) => `
     <div class="step">
-      <div class="step-no">${index + 1}</div>
-      <div class="step-card">
-        <h4>${step[0]}</h4>
-        <p class="muted">${step[1]}</p>
-      </div>
-    </div>
-  `).join("");
+      <div class="step-no">${i + 1}</div>
+      <div class="step-card"><h4>${step[0]}</h4><p class="muted">${step[1]}</p></div>
+    </div>`).join("");
 }
 
+// ─── Save / Load Roadmaps ────────────────────
 async function saveRoadmap() {
-  if (!state.token) return toast("Login first to save roadmap.");
-  const title = state.path.join(" -> ");
+  if (!state.token) return toast("Login first to save roadmap.", "error");
+  if (!state.current) return toast("Explore a career path first.");
+  const title = state.path.join(" → ");
   const saved = await api("/api/roadmaps", {
     method: "POST",
     body: JSON.stringify({ title, pathIds: state.path, finalOptionId: state.current })
   });
-  toast(`Saved roadmap: ${saved.finalOption.title}`);
+  toast(`Saved: ${saved.finalOption?.title || title}`);
   await loadRoadmaps();
 }
 
 async function loadRoadmaps() {
   if (!state.token) {
     $("savedRoadmaps").innerHTML = `<span class="saved-pill">Login to view saved roadmaps.</span>`;
-    $("compareA").innerHTML = "";
-    $("compareB").innerHTML = "";
     return;
   }
-  state.savedRoadmaps = await api("/api/roadmaps");
+  state.savedRoadmaps = await api("/api/roadmaps").catch(() => []);
   $("savedRoadmaps").innerHTML = state.savedRoadmaps.length
-    ? state.savedRoadmaps.map((roadmap) => `<span class="saved-pill">${roadmap.title}</span>`).join("")
+    ? state.savedRoadmaps.map(r => `<span class="saved-pill">${r.title}</span>`).join("")
     : `<span class="saved-pill">No saved roadmaps yet.</span>`;
 
-  const options = state.savedRoadmaps.map((roadmap) => `<option value="${roadmap.finalOptionId}">${roadmap.title}</option>`).join("");
-  $("compareA").innerHTML = options;
-  $("compareB").innerHTML = options;
+  const opts = state.savedRoadmaps.map(r => `<option value="${r.finalOptionId}">${r.title}</option>`).join("");
+  $("compareA").innerHTML = opts;
+  $("compareB").innerHTML = opts;
   if (state.savedRoadmaps.length > 1) $("compareB").selectedIndex = 1;
 }
 
+// ─── Compare ─────────────────────────────────
 async function compareRoadmaps() {
   const optionA = $("compareA").value;
   const optionB = $("compareB").value;
@@ -292,127 +300,168 @@ async function compareRoadmaps() {
   $("compareResult").innerHTML = `
     <table class="compare-table">
       <thead><tr><th>Factor</th><th>${result.a.title}</th><th>${result.b.title}</th></tr></thead>
-      <tbody>
-        ${result.factors.map((factor) => `<tr><td>${factor.label}</td><td>${factor.a}</td><td>${factor.b}</td></tr>`).join("")}
-      </tbody>
-    </table>
-  `;
+      <tbody>${result.factors.map(f => `<tr><td><strong>${f.label}</strong></td><td>${f.a}</td><td>${f.b}</td></tr>`).join("")}</tbody>
+    </table>`;
 }
 
+// ─── Download PDF ─────────────────────────────
 function downloadPdf() {
-  if (!state.currentDetail) return;
+  if (!state.currentDetail) return toast("Explore a path first.");
   $("printSheet").innerHTML = `
-    <h1>Career Path Navigator Roadmap</h1>
+    <h1>Career Path Navigator — Roadmap</h1>
     <p><strong>Student:</strong> ${state.user?.name || "Guest"}</p>
-    <p><strong>Selected path:</strong> ${state.path.join(" -> ")}</p>
-    <p><strong>Final option:</strong> ${state.currentDetail.title}</p>
+    <p><strong>Path:</strong> ${state.path.join(" → ")}</p>
+    <p><strong>Final Career:</strong> ${state.currentDetail.title}</p>
     <table>
       <thead><tr><th>Step</th><th>Action Plan</th></tr></thead>
-      <tbody>${roadmapSteps().map((step, index) => `<tr><td>${index + 1}. ${step[0]}</td><td>${step[1]}</td></tr>`).join("")}</tbody>
+      <tbody>${roadmapSteps().map((s, i) => `<tr><td>${i + 1}. ${s[0]}</td><td>${s[1]}</td></tr>`).join("")}</tbody>
     </table>
-    <p><strong>Scope:</strong> ${state.currentDetail.scope}</p>
-  `;
+    <p><strong>Scope:</strong> ${state.currentDetail.scope || "N/A"}</p>`;
   window.print();
 }
 
-async function sendChat(question) {
-
-  addMessage(question, "user");
-
-  try {
-
-    const data = await api("/api/chatbot", {
-      method: "POST",
-      body: JSON.stringify({
-        question,
-        currentOptionId: state.current
-      })
-    });
-
-    addMessage(data.answer || "No response from AI", "bot");
-
-  } catch (error) {
-
-    console.error("Chatbot Error:", error);
-
-    addMessage("AI chatbot not connected properly.", "bot");
-  }
-}
-
+// ─── Chatbot ─────────────────────────────────
 function addMessage(text, type) {
   const msg = document.createElement("div");
   msg.className = `msg ${type}`;
-  msg.textContent = text;
+
+  if (type === "loading") {
+    msg.innerHTML = `<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>`;
+    msg.id = "loadingMsg";
+  } else {
+    const escape = str => str.replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+    const safe = escape(text);
+    msg.innerHTML = safe
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.*?)\*/g, "<em>$1</em>")
+      .replace(/^## (.*)/gm, "<h4>$1</h4>")
+      .replace(/^- (.*)/gm, "• $1")
+      .replace(/\n/g, "<br>");
+  }
   $("chatMessages").appendChild(msg);
   $("chatMessages").scrollTop = $("chatMessages").scrollHeight;
+  return msg;
 }
 
-document.querySelectorAll(".nav-btn").forEach((btn) => btn.addEventListener("click", () => showScreen(btn.dataset.screen)));
-document.querySelectorAll(".auth-tab").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".auth-tab").forEach((tab) => tab.classList.toggle("active", tab === btn));
-    document.querySelectorAll(".auth-form").forEach((form) => form.classList.remove("active"));
-    $(`${btn.dataset.auth}Form`).classList.add("active");
-  });
+async function sendChat(question) {
+  addMessage(question, "user");
+  const loadingEl = addMessage("", "bot loading");
+  try {
+    const data = await api("/api/chatbot", {
+      method: "POST",
+      body: JSON.stringify({ question, currentOptionId: state.current })
+    });
+    loadingEl.remove();
+    addMessage(data.answer || "No response.", "bot");
+  } catch (error) {
+    loadingEl.remove();
+    addMessage("Sorry, I couldn't connect to the AI right now. Please try again.", "bot");
+  }
+}
+
+// ─── AUTH FORMS ───────────────────────────────
+$("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = $("loginSubmitBtn");
+  btn.textContent = "Logging in...";
+  btn.disabled = true;
+  try {
+    const data = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: $("loginEmail").value, password: $("loginPassword").value })
+    });
+    setUser(data.user, data.token);
+    state.current = data.user.academicStatus || state.stages[0]?.id;
+    state.path = [state.current];
+    await loadCurrent();
+    await loadRoadmaps();
+    showDashboard("explore");
+    toast(`Welcome back, ${data.user.name}!`);
+  } catch (err) {
+    toast(err.message, "error");
+  } finally {
+    btn.textContent = "Login to Dashboard";
+    btn.disabled = false;
+  }
 });
 
-$("registerForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const payload = {
-    name: $("registerName").value,
-    email: $("registerEmail").value,
-    password: $("registerPassword").value,
-    city: $("registerCity").value,
-    goal: $("registerGoal").value,
-    academicStatus: $("registerStatus").value
-  };
-  const data = await api("/api/auth/register", { method: "POST", body: JSON.stringify(payload) });
-  setUser(data.user, data.token);
-  state.current = data.user.academicStatus;
-  state.path = [state.current];
-  await loadCurrent();
-  showScreen("explore");
-  toast("Account created.");
+$("registerForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = $("registerSubmitBtn");
+  btn.textContent = "Creating account...";
+  btn.disabled = true;
+  try {
+    const data = await api("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        name: $("registerName").value,
+        email: $("registerEmail").value,
+        password: $("registerPassword").value,
+        city: $("registerCity").value,
+        goal: $("registerGoal").value,
+        academicStatus: $("registerStatus").value
+      })
+    });
+    setUser(data.user, data.token);
+    state.current = data.user.academicStatus;
+    state.path = [state.current];
+    await loadCurrent();
+    await loadRoadmaps();
+    showDashboard("explore");
+    toast(`Welcome, ${data.user.name}! Let's explore your career.`);
+  } catch (err) {
+    toast(err.message, "error");
+  } finally {
+    btn.textContent = "Create Account →";
+    btn.disabled = false;
+  }
 });
 
-$("loginForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const data = await api("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email: $("loginEmail").value, password: $("loginPassword").value })
-  });
-  setUser(data.user, data.token);
-  state.current = data.user.academicStatus || state.stages[0]?.id;
-  state.path = [state.current];
-  await loadCurrent();
-  showScreen("explore");
-  toast("Logged in.");
+// ─── EVENT LISTENERS ──────────────────────────
+// Landing CTAs
+$("heroGetStarted").addEventListener("click", () => showAuthPage("registerPage"));
+$("heroLearnMore").addEventListener("click", () => {
+  document.querySelector(".features-section")?.scrollIntoView({ behavior: "smooth" });
 });
+$("navLoginBtn").addEventListener("click", () => showAuthPage("loginPage"));
+$("navRegisterBtn").addEventListener("click", () => showAuthPage("registerPage"));
+$("switchToRegister").addEventListener("click", () => showAuthPage("registerPage"));
+$("switchToLogin").addEventListener("click", () => showAuthPage("loginPage"));
 
+// Dashboard nav
+document.querySelectorAll(".nav-btn").forEach(btn =>
+  btn.addEventListener("click", () => showScreen(btn.dataset.screen))
+);
+
+// Logout
 $("logoutBtn").addEventListener("click", () => {
   localStorage.removeItem("cpn_token");
   localStorage.removeItem("cpn_user");
   state.token = null;
   state.user = null;
-  renderUser();
-  showScreen("home");
+  state.current = null;
+  state.path = [];
+  state.currentDetail = null;
+  showAuthPage("landingPage");
   toast("Logged out.");
 });
 
+// Dashboard actions
 $("resetPathBtn").addEventListener("click", async () => {
-  state.current = state.user?.academicStatus || state.stages[0]?.id || "after-10th";
+  state.current = state.user?.academicStatus || state.stages[0]?.id;
   state.path = [state.current];
   await loadCurrent();
   toast("Path reset.");
 });
-
 $("saveRoadmapBtn").addEventListener("click", saveRoadmap);
 $("compareBtn").addEventListener("click", compareRoadmaps);
 $("downloadPdfBtn").addEventListener("click", downloadPdf);
+
+// Chat
 $("chatOpen").addEventListener("click", () => $("chat").classList.add("open"));
 $("chatClose").addEventListener("click", () => $("chat").classList.remove("open"));
-$("chatForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
+$("chatForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
   const input = $("chatInput");
   const question = input.value.trim();
   if (!question) return;
@@ -420,16 +469,43 @@ $("chatForm").addEventListener("submit", async (event) => {
   await sendChat(question);
 });
 
+// Theme toggles
+$("themeToggle").addEventListener("click", toggleTheme);
+$("themeToggleSidebar").addEventListener("click", toggleTheme);
+
+// ─── INIT ─────────────────────────────────────
 async function init() {
-  try {
-    renderUser();
-    addMessage("Hi. I can answer doubts about career paths, roadmaps, comparison and early earning options.", "bot");
-    await loadStages();
-    await loadCurrent();
-    await loadRoadmaps();
-  } catch (error) {
-    toast(error.message);
-    $("detailPanel").innerHTML = `<p class="muted">Backend/database not connected: ${error.message}</p>`;
+  // Apply saved theme
+  const savedTheme = localStorage.getItem("cpn_theme") || "light";
+  applyTheme(savedTheme);
+
+  // Load stages for register form
+  await loadStages().catch(() => {});
+
+  if (state.token && state.user) {
+    // Already logged in — go straight to dashboard
+    renderUserInfo();
+    try {
+      state.current = state.user.academicStatus || state.stages[0]?.id;
+      state.path = [state.current];
+      await loadCurrent();
+      await loadRoadmaps();
+      showDashboard("explore");
+
+      // Init chat
+      addMessage("Hi! I'm your Career AI Assistant. Ask me anything about career paths, roadmaps, or comparisons!", "bot");
+    } catch (err) {
+      // Token expired or DB error — reset to landing
+      localStorage.removeItem("cpn_token");
+      localStorage.removeItem("cpn_user");
+      state.token = null;
+      state.user = null;
+      showAuthPage("landingPage");
+      toast("Session expired. Please login again.", "error");
+    }
+  } else {
+    // Not logged in — show landing page
+    showAuthPage("landingPage");
   }
 }
 
