@@ -403,20 +403,6 @@ app.post("/api/chatbot", async (req, res) => {
     const topMatches = scored.slice(0, 3);
     const match = scored[0];
 
-    // ==========================================
-    // LOCAL BYPASS (Save Gemini Tokens & Agentic UI)
-    // ==========================================
-    const bypassIds = ["data-science", "cybersecurity", "full-stack"];
-    if (match && bypassIds.includes(match.id)) {
-      return res.json({
-        answer: `I have instantly mapped out a complete career path for **${match.title}**. Redirecting you to the Roadmap page now so you can view the detailed flowchart and download the PDF...`,
-        action: "roadmap",
-        recommendation: {
-          finalOptionId: match.id,
-          pathIds: buildPath(match, byId).map(i => i.id)
-        }
-      });
-    }
 
     // 2. Build Context for Gemini
     let dbContext = "";
