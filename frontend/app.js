@@ -307,16 +307,69 @@ async function compareRoadmaps() {
 // ─── Download PDF ─────────────────────────────
 function downloadPdf() {
   if (!state.currentDetail) return toast("Explore a path first.");
+  const detail = state.currentDetail;
+  
+  const flowChartHtml = state.path.map((step, idx) => `
+    <div style="display:inline-block; padding:8px 12px; background:#eef2ff; border:2px solid #6366f1; border-radius:8px; margin:4px; font-weight:bold; color:#312e81;">
+      ${step.replace(/-/g, ' ').toUpperCase()}
+    </div>
+    ${idx < state.path.length - 1 ? '<span style="font-size:20px; color:#6366f1; vertical-align:middle; margin: 0 4px;">➔</span>' : ''}
+  `).join("");
+
   $("printSheet").innerHTML = `
-    <h1>Career Path Navigator — Roadmap</h1>
-    <p><strong>Student:</strong> ${state.user?.name || "Guest"}</p>
-    <p><strong>Path:</strong> ${state.path.join(" → ")}</p>
-    <p><strong>Final Career:</strong> ${state.currentDetail.title}</p>
-    <table>
-      <thead><tr><th>Step</th><th>Action Plan</th></tr></thead>
-      <tbody>${roadmapSteps().map((s, i) => `<tr><td>${i + 1}. ${s[0]}</td><td>${s[1]}</td></tr>`).join("")}</tbody>
-    </table>
-    <p><strong>Scope:</strong> ${state.currentDetail.scope || "N/A"}</p>`;
+    <div style="font-family: sans-serif; color: #111;">
+      <h1 style="border-bottom: 2px solid #6366f1; padding-bottom: 8px; color: #312e81;">Career Path Roadmap</h1>
+      <p><strong>Student:</strong> ${state.user?.name || "Guest"} &nbsp;&nbsp;&nbsp; <strong>Goal:</strong> ${state.user?.goal || "Exploring"}</p>
+      
+      <h3 style="color: #4338ca; margin-top: 24px;">Visual Flowchart</h3>
+      <div style="padding: 16px; background: #f8fafc; border-radius: 8px; margin-bottom: 24px; text-align: center; border: 1px dashed #cbd5e1;">
+        ${flowChartHtml}
+      </div>
+
+      <h3 style="color: #4338ca;">Final Career: ${detail.title}</h3>
+      <p><strong>Summary:</strong> ${detail.summary || "N/A"}</p>
+      <p><strong>Scope:</strong> ${detail.scope || "N/A"}</p>
+      
+      <div style="display: flex; gap: 16px; margin-top: 16px; margin-bottom: 24px;">
+        <div style="flex:1; padding: 12px; border: 1px solid #ccc; border-radius: 8px;"><strong>Duration:</strong> <br>${detail.duration || "N/A"}</div>
+        <div style="flex:1; padding: 12px; border: 1px solid #ccc; border-radius: 8px;"><strong>Cost:</strong> <br>${detail.cost || "N/A"}</div>
+        <div style="flex:1; padding: 12px; border: 1px solid #ccc; border-radius: 8px;"><strong>Difficulty:</strong> <br>${detail.difficulty || "N/A"}</div>
+      </div>
+
+      <h3 style="color: #4338ca;">Step-by-Step Action Plan</h3>
+      <table style="width:100%; border-collapse: collapse; margin-bottom: 24px;">
+        <thead>
+          <tr style="background: #eef2ff; text-align: left;">
+            <th style="padding: 12px; border: 1px solid #cbd5e1;">Step</th>
+            <th style="padding: 12px; border: 1px solid #cbd5e1;">Action Plan</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${roadmapSteps().map((s, i) => `
+            <tr>
+              <td style="padding: 12px; border: 1px solid #cbd5e1; font-weight: bold;">${i + 1}. ${s[0]}</td>
+              <td style="padding: 12px; border: 1px solid #cbd5e1;">${s[1]}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+
+      <h3 style="color: #4338ca;">Requirements & Details</h3>
+      <div style="display: flex; gap: 16px; font-size: 14px;">
+        <div style="flex: 1;">
+          <strong>Eligibility:</strong>
+          <ul style="padding-left:16px;">${(detail.eligibility || []).map(e => `<li style="margin-bottom:4px;">${e}</li>`).join("")}</ul>
+        </div>
+        <div style="flex: 1;">
+          <strong>Core Skills:</strong>
+          <ul style="padding-left:16px;">${(detail.skills || []).map(s => `<li style="margin-bottom:4px;">${s}</li>`).join("")}</ul>
+        </div>
+        <div style="flex: 1;">
+          <strong>Opportunities:</strong>
+          <ul style="padding-left:16px;">${(detail.opportunities || []).map(o => `<li style="margin-bottom:4px;">${o}</li>`).join("")}</ul>
+        </div>
+      </div>
+    </div>`;
   window.print();
 }
 
@@ -353,6 +406,19 @@ async function sendChat(question) {
     });
     loadingEl.remove();
     addMessage(data.answer || "No response.", "bot");
+
+    // Agentic UI Control
+    if (data.action && data.recommendation) {
+      state.current = data.recommendation.finalOptionId;
+      state.path = data.recommendation.pathIds;
+      await loadCurrent();
+      
+      setTimeout(() => {
+        toast(`Redirecting to ${data.action} for ${data.recommendation.finalOptionId}...`, "default");
+        showScreen(data.action);
+      }, 500);
+    }
+
   } catch (error) {
     loadingEl.remove();
     addMessage("Sorry, I couldn't connect to the AI right now. Please try again.", "bot");
