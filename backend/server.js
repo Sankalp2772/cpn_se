@@ -462,6 +462,7 @@ User Question: ${question}`;
 
     res.json({
       answer: aiAnswer,
+      action: match ? "roadmap" : null,
       recommendation: match ? {
         finalOptionId: match.id,
         pathIds: buildPath(match, byId).map(i => i.id)
