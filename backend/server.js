@@ -434,7 +434,8 @@ YOUR INSTRUCTIONS:
 3. Be encouraging, professional, and highly actionable. Address the user by name if known.
 4. Structure your response beautifully using markdown: use **bolding** for key terms, bullet points for lists, and keep paragraphs short.
 5. If the user asks a general question, give them a high-quality, step-by-step roadmap using your own AI knowledge.
-6. Keep the response concise but highly informative (around 150-300 words).
+6. If the user says a greeting (like "hi" or "hello") or says "thank you", reply politely and conversationally as a helpful assistant.
+7. Keep the response concise but highly informative (around 150-300 words, unless it's just a greeting).
 
 User Question: ${question}`;
 
