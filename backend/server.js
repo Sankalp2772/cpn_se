@@ -409,15 +409,33 @@ app.post("/api/chatbot", async (req, res) => {
     if (topMatches.length > 0) {
       dbContext = "DATABASE MATCHES FOUND (Use this data to answer):\n\n" + topMatches.map(m => {
         const pathItems = buildPath(m, byId);
-        return `Career: ${m.title}
-Summary: ${m.summary}
-Path: ${formatPath(pathItems)}
-Skills: ${m.skills.join(", ")}
-Opportunities: ${m.opportunities.join(", ")}
-Scope: ${m.scope}`;
+        return `Career: ${m.title}\nSummary: ${m.summary}\nPath: ${formatPath(pathItems)}\nSkills: ${m.skills.join(", ")}\nOpportunities: ${m.opportunities.join(", ")}\nScope: ${m.scope}`;
       }).join("\n\n---\n\n");
     } else {
       dbContext = "AVAILABLE CAREER OPTIONS IN DATABASE:\n" + options.map(o => o.title).join(", ");
+    }
+
+    // 3. Auto-save Roadmap to Database & Cache
+    if (match && user) {
+      try {
+        const pathIds = buildPath(match, byId).map(i => i.id);
+        const roadmapTitle = pathIds.join(" -> ");
+        
+        // Prevent duplicate saves for the same career
+        const [existing] = await pool.query(
+          "SELECT id FROM roadmaps WHERE user_id = ? AND final_option_id = ?",
+          [user.id, match.id]
+        );
+        
+        if (existing.length === 0) {
+          await pool.query(
+            "INSERT INTO roadmaps (user_id, title, path_ids, final_option_id) VALUES (?, ?, ?, ?)",
+            [user.id, roadmapTitle, JSON.stringify(pathIds), match.id]
+          );
+        }
+      } catch (err) {
+        console.warn("Auto-save roadmap failed:", err.message);
+      }
     }
 
     // 2. Call Gemini for a personalized response
