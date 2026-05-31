@@ -361,10 +361,10 @@ app.post("/api/chatbot", async (req, res) => {
 
     const systemPrompt = `You are the "Career Path Navigator AI", an expert career counselor and educational guide powered by Google's Gemini model.
 
-${user ? \`USER PROFILE:
-- Name: \${user.name}
-- Goal: \${user.goal}
-- Academic Status: \${user.academicStatus}\` : "USER PROFILE: Guest (Unknown status)"}
+${user ? `USER PROFILE:
+- Name: ${user.name}
+- Goal: ${user.goal}
+- Academic Status: ${user.academicStatus}` : "USER PROFILE: Guest (Unknown status)"}
 
 AVAILABLE DATABASE CONTEXT:
 ${dbContext || "No direct database match found."}
