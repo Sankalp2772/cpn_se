@@ -10,13 +10,7 @@ services:
         value: 20.x
       - key: PORT
         value: 5000
-      - key: DB_HOST
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_NAME
+      - key: MONGO_URI
         sync: false
       - key: GEMINI_API_KEY
         sync: false
