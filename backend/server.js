@@ -401,7 +401,10 @@ app.post("/api/chatbot", async (req, res) => {
       .map((item) => item.option);
 
     const topMatches = scored.slice(0, 3);
-    const match = scored[0];
+    
+    // Only redirect if there is a STRICT alias match, to prevent accidental conversational redirects
+    const aliasMatch = findAliasMatch(question);
+    const match = aliasMatch ? byId.get(aliasMatch.id) : null;
 
 
     // 2. Build Context for Gemini
