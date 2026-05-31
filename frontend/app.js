@@ -417,6 +417,11 @@ async function sendChat(question) {
       setTimeout(() => {
         toast(`Redirecting to ${data.action} for ${data.recommendation.finalOptionId}...`, "default");
         showScreen(data.action);
+        
+        // Auto-download PDF if the action is roadmap
+        if (data.action === "roadmap") {
+          setTimeout(downloadPdf, 1000); // Wait 1 second for the UI to settle before downloading
+        }
       }, 500);
     }
 
