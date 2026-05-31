@@ -10,7 +10,7 @@ const User = require("./src/models/User");
 const CareerOption = require("./src/models/CareerOption");
 const Roadmap = require("./src/models/Roadmap");
 
-const { createToken, authRequired } = require("./src/auth");
+const { createToken, authRequired, isAdmin } = require("./src/auth");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -159,7 +159,7 @@ app.post("/api/auth/register", async (req, res) => {
       name, email, password_hash: hashedPassword, academic_status: academicStatus, city: city || "", goal: goal || ""
     });
 
-    const user = { id: result._id, name, email, academicStatus, city, goal };
+    const user = { id: result._id, name, email, academicStatus, city, goal, role: result.role || "user" };
     res.status(201).json({ user, token: createToken(user) });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -186,7 +186,8 @@ app.post("/api/auth/login", async (req, res) => {
       email: userRow.email,
       academicStatus: userRow.academic_status || userRow.academic_stage,
       city: userRow.city || "",
-      goal: userRow.goal || ""
+      goal: userRow.goal || "",
+      role: userRow.role || "user"
     };
     res.json({ user, token: createToken(user) });
   } catch (error) {
@@ -274,6 +275,68 @@ app.get("/api/roadmaps", authRequired, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+// --- ADMIN ROUTES ---
+
+app.get("/api/admin/users", authRequired, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({}, '-password -password_hash').sort({ created_at: -1 }).lean();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.post("/api/admin/users", authRequired, isAdmin, async (req, res) => {
+  try {
+    const { name, email, password, academicStatus, city, goal, role } = req.body;
+    if (!name || !email || !password || !academicStatus) {
+      return res.status(400).json({ message: "Name, email, password and academic status are required" });
+    }
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(409).json({ message: "Email already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await User.create({
+      name, email, password_hash: hashedPassword, academic_status: academicStatus, city: city || "", goal: goal || "", role: role || "user"
+    });
+    
+    const user = { id: result._id, name: result.name, email: result.email, role: result.role, academicStatus: result.academic_status };
+    res.status(201).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.put("/api/admin/users/:id", authRequired, isAdmin, async (req, res) => {
+  try {
+    const { name, email, password, academicStatus, city, goal, role } = req.body;
+    const updateData = { name, email, academic_status: academicStatus, city, goal, role };
+    
+    if (password) {
+      updateData.password_hash = await bcrypt.hash(password, 10);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, updateData, { new: true }).select('-password -password_hash').lean();
+    if (!updatedUser) return res.status(404).json({ message: "User not found" });
+    
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.delete("/api/admin/users/:id", authRequired, isAdmin, async (req, res) => {
+  try {
+    const deletedUser = await User.findByIdAndDelete(req.params.id);
+    if (!deletedUser) return res.status(404).json({ message: "User not found" });
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// --- END ADMIN ROUTES ---
 
 app.post("/api/compare", async (req, res) => {
   const { optionA, optionB } = req.body;

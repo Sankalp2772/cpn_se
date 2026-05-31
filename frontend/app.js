@@ -80,7 +80,8 @@ function showScreen(id) {
     explore: ["Explore Paths", "Move step by step through career options from the database."],
     mindmap: ["Mindmap", "See your selected route as a tree-based visual structure."],
     roadmap: ["Roadmap PDF", "Generate and download your selected path as PDF."],
-    compare: ["Compare", "Compare two saved roadmaps using database-backed data."]
+    compare: ["Compare", "Compare two saved roadmaps using database-backed data."],
+    admin: ["User Management", "Manage users registered in the system."]
   };
 
   if (copy[id]) {
@@ -90,6 +91,7 @@ function showScreen(id) {
 
   if (id === "compare") loadRoadmaps();
   if (id === "mindmap") renderMindmap();
+  if (id === "admin") loadAdminUsers();
 }
 
 // ─── User State ───────────────────────────────
@@ -98,6 +100,8 @@ function setUser(user, token) {
   state.token = token;
   localStorage.setItem("cpn_user", JSON.stringify(user));
   localStorage.setItem("cpn_token", token);
+  if (user && user.role === 'admin') show($("navAdminBtn"));
+  else hide($("navAdminBtn"));
   renderUserInfo();
 }
 
@@ -122,10 +126,17 @@ async function loadStages() {
 
 async function loadCurrent() {
   if (!state.current) return;
-  const detail = await api(`/api/career/options/${state.current}`);
-  state.currentDetail = detail;
-  renderExplore(detail);
-  renderRoadmap();
+  try {
+    const detail = await api(`/api/career/options/${state.current}`);
+    state.currentDetail = detail;
+    renderExplore(detail);
+    renderRoadmap();
+  } catch (error) {
+    console.warn("Could not load current option:", error.message);
+    state.currentDetail = null;
+    const el = $("detailPanel");
+    if (el) el.innerHTML = `<p class="muted">Could not load details for this stage. Please select a valid path.</p>`;
+  }
 }
 
 // ─── Explore ──────────────────────────────────
@@ -374,6 +385,97 @@ function downloadPdf() {
   window.print();
 }
 
+// ─── Admin Panel ─────────────────────────────
+async function loadAdminUsers() {
+  if (state.user?.role !== "admin") return;
+  try {
+    const users = await api("/api/admin/users");
+    $("adminUsersTableBody").innerHTML = users.map(u => `
+      <tr>
+        <td>${u.name}</td>
+        <td>${u.email}</td>
+        <td><span class="chip ${u.role === 'admin' ? 'orange' : 'blue'}">${u.role}</span></td>
+        <td>${u.academic_status}</td>
+        <td>
+          <button class="btn light" onclick='editAdminUser(${JSON.stringify(u)})'>Edit</button>
+          <button class="btn light" onclick='deleteAdminUser("${u._id}")' style="color:red">Delete</button>
+        </td>
+      </tr>
+    `).join("");
+  } catch (error) {
+    toast("Failed to load users", "error");
+  }
+}
+
+function openAdminModal(user = null) {
+  $("adminUserForm").reset();
+  $("adminUserStatus").innerHTML = state.stages.map(s => `<option value="${s.id}">${s.title}</option>`).join("");
+  if (user) {
+    $("adminModalTitle").textContent = "Edit User";
+    $("adminUserId").value = user._id;
+    $("adminUserName").value = user.name;
+    $("adminUserEmail").value = user.email;
+    $("adminUserRole").value = user.role || "user";
+    $("adminUserCity").value = user.city || "";
+    $("adminUserStatus").value = user.academic_status;
+    $("adminUserGoal").value = user.goal || "";
+  } else {
+    $("adminModalTitle").textContent = "Add User";
+    $("adminUserId").value = "";
+  }
+  show($("adminUserModal"));
+}
+
+window.editAdminUser = openAdminModal;
+window.deleteAdminUser = async (id) => {
+  if (!confirm("Are you sure you want to delete this user?")) return;
+  try {
+    await api(`/api/admin/users/${id}`, { method: "DELETE" });
+    toast("User deleted");
+    loadAdminUsers();
+  } catch (error) {
+    toast(error.message, "error");
+  }
+};
+
+$("adminCancelBtn").addEventListener("click", () => hide($("adminUserModal")));
+$("adminAddUserBtn").addEventListener("click", () => openAdminModal());
+
+$("adminUserForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = $("adminUserId").value;
+  const method = id ? "PUT" : "POST";
+  const url = id ? `/api/admin/users/${id}` : "/api/admin/users";
+  
+  const payload = {
+    name: $("adminUserName").value,
+    email: $("adminUserEmail").value,
+    role: $("adminUserRole").value,
+    city: $("adminUserCity").value,
+    academicStatus: $("adminUserStatus").value,
+    goal: $("adminUserGoal").value,
+  };
+  
+  const password = $("adminUserPassword").value;
+  if (password) payload.password = password;
+
+  try {
+    const btn = $("adminSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+    await api(url, { method, body: JSON.stringify(payload) });
+    toast(id ? "User updated" : "User created");
+    hide($("adminUserModal"));
+    loadAdminUsers();
+  } catch (error) {
+    toast(error.message, "error");
+  } finally {
+    const btn = $("adminSubmitBtn");
+    btn.disabled = false;
+    btn.textContent = "Save User";
+  }
+});
+
 // ─── Chatbot ─────────────────────────────────
 function addMessage(text, type) {
   const msg = document.createElement("div");
@@ -447,7 +549,7 @@ $("loginForm").addEventListener("submit", async (e) => {
     state.path = [state.current];
     await loadCurrent();
     await loadRoadmaps();
-    showDashboard("explore");
+    showDashboard(data.user.role === 'admin' ? 'admin' : 'explore');
     toast(`Welcome back, ${data.user.name}!`);
   } catch (err) {
     toast(err.message, "error");
@@ -479,7 +581,7 @@ $("registerForm").addEventListener("submit", async (e) => {
     state.path = [state.current];
     await loadCurrent();
     await loadRoadmaps();
-    showDashboard("explore");
+    showDashboard(data.user.role === 'admin' ? 'admin' : 'explore');
     toast(`Welcome, ${data.user.name}! Let's explore your career.`);
   } catch (err) {
     toast(err.message, "error");
@@ -558,11 +660,12 @@ async function init() {
     // Already logged in — go straight to dashboard
     renderUserInfo();
     try {
+      if (state.user.role === 'admin') show($("navAdminBtn"));
       state.current = state.user.academicStatus || state.stages[0]?.id;
       state.path = [state.current];
       await loadCurrent();
       await loadRoadmaps();
-      showDashboard("explore");
+      showDashboard(state.user.role === 'admin' ? 'admin' : 'explore');
 
       // Init chat
       addMessage("Hi! I'm your Career AI Assistant. Ask me anything about career paths, roadmaps, or comparisons!", "bot");

@@ -215,6 +215,7 @@
         <button class="nav-btn" data-screen="mindmap">Mindmap</button>
         <button class="nav-btn" data-screen="roadmap">Roadmap PDF</button>
         <button class="nav-btn" data-screen="compare">Compare</button>
+        <button class="nav-btn hidden" id="navAdminBtn" data-screen="admin">Admin Panel</button>
       </nav>
 
       <div class="sidebar-footer">
@@ -313,6 +314,38 @@
           </div>
         </section>
       </section>
+
+      <!-- ADMIN PANEL -->
+      <section class="screen" id="admin">
+        <section class="panel">
+          <div class="panel-head split">
+            <div>
+              <h3>User Management</h3>
+              <p>Manage users registered in the system.</p>
+            </div>
+            <button class="btn primary" id="adminAddUserBtn">Add New User</button>
+          </div>
+          <div class="panel-body">
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Academic Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminUsersTableBody">
+                  <!-- Users will be populated here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </section>
+
     </main>
 
     <!-- AI Chatbot -->
@@ -332,6 +365,61 @@
       </form>
     </section>
   </div><!-- /dashboardPages -->
+
+  <!-- Admin User Modal -->
+  <div id="adminUserModal" class="auth-pages hidden" style="z-index: 1000; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
+    <div class="auth-form-card" style="max-width: 500px; width: 100%; margin: 20px;">
+      <div class="auth-form-header">
+        <h2 id="adminModalTitle">Add User</h2>
+      </div>
+      <form id="adminUserForm">
+        <input type="hidden" id="adminUserId">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Full Name</label>
+            <input id="adminUserName" required placeholder="John Doe">
+          </div>
+          <div class="form-group">
+            <label>Email Address</label>
+            <input id="adminUserEmail" type="email" required placeholder="john@example.com">
+          </div>
+          <div class="form-group">
+            <label>Password (leave blank to keep current)</label>
+            <input id="adminUserPassword" type="password" placeholder="••••••••">
+          </div>
+          <div class="form-group">
+            <label>Role</label>
+            <select id="adminUserRole">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>City</label>
+            <input id="adminUserCity" placeholder="e.g. Bangalore">
+          </div>
+          <div class="form-group">
+            <label>Current Academic Status</label>
+            <select id="adminUserStatus"></select>
+          </div>
+          <div class="form-group full">
+            <label>Your Goal</label>
+            <select id="adminUserGoal">
+              <option>Confused and exploring</option>
+              <option>Need high-income career</option>
+              <option>Need early earning option</option>
+              <option>Interested in technology</option>
+              <option>Interested in government jobs</option>
+            </select>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 16px;">
+          <button class="btn light full" type="button" id="adminCancelBtn">Cancel</button>
+          <button class="btn primary full" type="submit" id="adminSubmitBtn">Save User</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Print sheet & toast -->
   <section id="printSheet" class="print-sheet"></section>
