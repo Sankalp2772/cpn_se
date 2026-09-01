@@ -2,11 +2,20 @@
   "name": "career-path-navigator-fullstack",
   "version": "1.0.0",
   "description": "Full stack Career Path Navigator project",
+  "main": "backend/server.js",
   "scripts": {
-    "install-backend": "cd backend && npm install",
-    "setup-db": "cd backend && npm run setup-db",
-    "start": "cd backend && npm start",
-    "build": "cd backend && npm install",
-    "postinstall": "cd backend && npm install"
+    "dev": "node backend/server.js",
+    "start": "node backend/server.js",
+    "build": "echo 'No build step required'",
+    "setup-db": "node backend/scripts/setupDatabase.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.0"
   }
 }

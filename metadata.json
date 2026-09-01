@@ -1,0 +1,8 @@
+{
+  "name": "Career Path Navigator",
+  "description": "AI-powered career guidance and personalized roadmap navigator for students and professionals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
